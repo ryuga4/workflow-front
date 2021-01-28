@@ -6,27 +6,43 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import Element as Element
 import Element.Input as Input
+import Element.Background as Background
 import Debug as Debug
+import Html as Html
+import Random as Random
 main = Browser.element {init=init,update=update,subscriptions=subscriptions,view=view}
 
 
-type alias Model = {workflow : Workflow.Model}
+type alias Model = {workflow : Workflow.Model, availableNodes : List (String, String -> Node.Model)}
 
-type Msg = NoOp | WorkflowMsg Workflow.Msg
+type Msg 
+        = NoOp 
+        | WorkflowMsg Workflow.Msg
+        | RequestGuidForNode (String -> Node.Model)
+        | AddNode Node.Model
+
 
 update : Msg -> Model -> (Model, Cmd Msg)
-update msg model = case msg of
+update msg ({workflow} as model) = case msg of
     NoOp -> (model, Cmd.none)
     
     WorkflowMsg subMsg -> 
         let (newWorkflow, cmd) = Workflow.update subMsg model.workflow
         in ({model | workflow = newWorkflow}, Cmd.map WorkflowMsg cmd)
-
-
-view model =Element.layout [] <| Element.row []
-    [ Element.el [Element.alignTop] (Element.map WorkflowMsg (Workflow.view model.workflow))
+    RequestGuidForNode constructor ->
+      (model, Random.generate (\n -> AddNode (constructor <| String.fromInt n)) (Random.int Random.minInt Random.maxInt))
+    AddNode node -> 
+      let newWorkflow = {workflow | nodes = workflow.nodes ++ [node]}
+      in ({model | workflow = newWorkflow}, Cmd.none)
+view : Model -> Html.Html Msg
+view model = Element.layout [] <| Element.row []
+    [ Element.column [] <| List.map (\(name, constructor) -> 
+          Input.button [Background.color (Element.rgb255 238 238 238), Element.focused [Background.color (Element.rgb255 150 150 200)]] {onPress = Just (RequestGuidForNode constructor), label = Element.text name} 
+        ) model.availableNodes
+    , Element.el [Element.alignTop] (Element.map WorkflowMsg (Workflow.view model.workflow))
     , Input.multiline [] {onChange = \_ -> NoOp, text = Encode.encode 5 (Workflow.encodeModel model.workflow), placeholder = Nothing, label = Input.labelHidden "kod", spellcheck = False}
     ]
+  
 
 subscriptions : Model -> Sub Msg
 subscriptions model = Sub.map WorkflowMsg (Workflow.subscriptions model.workflow)
@@ -39,8 +55,8 @@ subscriptions model = Sub.map WorkflowMsg (Workflow.subscriptions model.workflow
 init : () -> (Model, Cmd Msg)
 init () = 
     case Decode.decodeString (Decode.list Node.modelDecoder) jsonString of
-        Ok nodes -> ({workflow = { documentId = "testDocumentId", nodes = nodes}}, Cmd.none)
-        Err e -> Debug.log (Decode.errorToString e) ({workflow = { documentId = "testDocumentId", nodes = []}}, Cmd.none)
+        Ok nodes -> ({workflow = { documentId = "testDocumentId", nodes = []}, availableNodes = nodes}, Cmd.none)
+        Err e -> Debug.log (Decode.errorToString e) ({workflow = { documentId = "testDocumentId", nodes = []}, availableNodes = []}, Cmd.none)
 
 
 

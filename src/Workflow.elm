@@ -26,10 +26,10 @@ encodeModel model = Encode.object [("documentId", Encode.string model.documentId
 
 
 
-modelDecoder : Decode.Decoder Model
-modelDecoder = Decode.map2 (\documentId nodes -> {documentId=documentId,nodes=nodes})
-                    (Decode.field "documentId" Decode.string)
-                    (Decode.field "nodes" (Decode.list (Node.modelDecoder)))
+-- modelDecoder : Decode.Decoder Model
+-- modelDecoder = Decode.map2 (\documentId nodes -> {documentId=documentId,nodes=nodes})
+--                     (Decode.field "documentId" Decode.string)
+--                     (Decode.field "nodes" (Decode.list (Node.modelDecoder)))
 
 ------------------------ UDPATE
 

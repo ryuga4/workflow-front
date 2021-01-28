@@ -32,12 +32,14 @@ type Index = TextIndex String | NumberIndex Int
 type Msg 
         = NoOp
         | TextChanged String
+        | NodeIDChanged String
         | NumberChanged Int
         | NestedMsg Index Msg
         | AddElement
         | DeleteElement Int
         | DragMsg (Draggable.Msg String)
         | OnDragBy Draggable.Delta
+        
 
 type alias Model = NodeInstanceViewModel
 
@@ -46,23 +48,25 @@ type alias NodeInstanceViewModel =
   { nodeType : String
   , id : String
   , nodeName : String
-  , nodeDefinition : NodeInput String Int
+  , nodeDefinition : NodeInput String Int NodeIDInputData
   , position : (Int,Int)
   , drag : Draggable.State String
   }
 
+type NodeIDInputData = NodeIDInputData String (Int,Int)
 
-type NodeInput t n = Object (Dict String (NodeInput t n))
+type NodeInput t n nid = Object (Dict String (NodeInput t n nid))
                | TextInput t
                | NumberInput n
-               | ListInput (NodeInput t n) (List (NodeInput t n)) 
+               | NodeIDInput nid
+               | ListInput (NodeInput t n nid) (List (NodeInput t n nid)) 
 
 
 
 type alias NodeDescription = 
   { nodeType : String
   , outputs : List ()
-  , nodeDefinition : NodeInput () ()
+  , nodeDefinition : NodeInput () () ()
   , position : (Int,Int)
   , drag : Draggable.State String
   }
@@ -90,12 +94,13 @@ view model =
 
 nodeToView : NodeInstanceViewModel -> Element.Element Msg
 nodeToView node = Element.column [Background.color (Element.rgb255 250 250 250),Element.alignTop, Border.width 1, Element.htmlAttribute (Attributes.style "z-index" "100"), Element.htmlAttribute (Attributes.style "position" "absolute"), Element.htmlAttribute (Attributes.style "left" (String.fromInt (Tuple.first node.position) ++ "px")), Element.htmlAttribute (Attributes.style "top" (String.fromInt (Tuple.second node.position) ++ "px"))]
-  [ Element.row [] [Element.el [Element.htmlAttribute (Draggable.mouseTrigger node.id DragMsg)] (Element.text "grab me  "), Element.el [Element.alignRight] <| Element.text node.nodeName]
+  [ Element.text node.id
+  , Element.row [] [Element.el [Element.htmlAttribute (Draggable.mouseTrigger node.id DragMsg)] (Element.text "grab me  "), Element.el [Element.alignRight] <| Element.text node.nodeName]
   , Element.text (let (x,y) = (node.position) in "(" ++ String.fromInt x ++ ", "++ String.fromInt y ++ ")")
   , nodeInputToView 1 node.nodeDefinition
   ]
 
-nodeInputToView : Int -> NodeInput String Int -> Element.Element Msg
+nodeInputToView : Int -> NodeInput String Int NodeIDInputData -> Element.Element Msg
 nodeInputToView lvl input = case input of
 
   (Object dict) -> 
@@ -112,7 +117,16 @@ nodeInputToView lvl input = case input of
       , spellcheck = False
       }
 
-  (NumberInput n) ->
+  (NodeIDInput (NodeIDInputData nodeID (x,y))) ->
+    Input.multiline [Element.padding 4, Element.width (Element.fill |> Element.minimum 100 |> Element.maximum 150)]
+      { onChange = \t2 -> NodeIDChanged t2 
+      , text = nodeID
+      , placeholder = Nothing
+      , label = Input.labelHidden "podaj tekst"
+      , spellcheck = False
+      }
+
+  (NumberInput n) -> 
      Input.multiline [Element.padding 4, Element.width (Element.fill |> Element.minimum 100 |> Element.maximum 150)]
       { onChange = (NumberChanged << Maybe.withDefault n << String.toInt) 
       , text = String.fromInt n
@@ -153,7 +167,7 @@ update msg model = case msg of
     let (newNodeDefinition, cmd) = updateInput msg model.nodeDefinition
     in ({model | nodeDefinition = newNodeDefinition}, cmd)
 
-updateInput : Msg -> NodeInput String Int -> (NodeInput String Int, Cmd Msg)
+updateInput : Msg -> NodeInput String Int NodeIDInputData -> (NodeInput String Int NodeIDInputData, Cmd Msg)
 updateInput msg nodeInput = case (msg, nodeInput) of
   (NoOp, _) -> (nodeInput, Cmd.none)
 
@@ -190,7 +204,7 @@ encodeModel model = Encode.object
   , ("nodeDefinition", encodeNodeInput model.nodeDefinition)
   ]
 
-encodeNodeInput : NodeInput String Int -> Encode.Value
+encodeNodeInput : NodeInput String Int NodeIDInputData -> Encode.Value
 encodeNodeInput nodeInput = case nodeInput of
   Object dict -> Encode.object <| List.map (\(k,v) -> (k,encodeNodeInput v)) <| Dict.toList dict
 
@@ -200,21 +214,21 @@ encodeNodeInput nodeInput = case nodeInput of
 
   ListInput sampleInput subInputs -> Encode.object [("inputMethod", Encode.string "list"),("inputs", Encode.list encodeNodeInput subInputs)]
 
+  NodeIDInput (NodeIDInputData s _) -> Encode.object [("inputMethod", Encode.string "basic"), ("value", Encode.string s)]
 
 
-
-modelDecoder : Decode.Decoder Model
-modelDecoder = Decode.map3 (\nodeType nodeName nodeDefinition -> {nodeType = nodeType, nodeName=nodeName, id = nodeType, nodeDefinition = nodeDefinition, position = (0,0), drag = Draggable.init})
+modelDecoder : Decode.Decoder (String, String -> Model)
+modelDecoder = Decode.map3 (\nodeType nodeName nodeDefinition -> (nodeName, \id -> {nodeType = nodeType, nodeName=nodeName, id = id, nodeDefinition = nodeDefinition, position = (0,0), drag = Draggable.init}))
                   (Decode.field "nodeType" Decode.string)
                   (Decode.field "nodeName" Decode.string)
                   (Decode.field "nodeDefinition" nodeInputDecoder)
 
-nodeInputDecoder : Decode.Decoder (NodeInput String Int)
+nodeInputDecoder : Decode.Decoder (NodeInput String Int NodeIDInputData)
 nodeInputDecoder = Decode.oneOf 
                     [ Decode.map5 (\inputType inputLabel maybeMin maybeMax maybeSubInput -> case ((inputType, inputLabel),(maybeMin, maybeMax, maybeSubInput)) of 
                                                               (("text", l), (Nothing, Nothing, Nothing)) -> TextInput ""
                                                               (("number", l), (Nothing, Nothing, Nothing)) -> NumberInput 0
-                                                              (("nodeID", l), (Nothing, Nothing, Nothing)) -> TextInput ""
+                                                              (("nodeID", l), (Nothing, Nothing, Nothing)) -> NodeIDInput (NodeIDInputData "" (0,0))
                                                               (("list", l), (Just min, Just max, Just subInput)) -> ListInput subInput []
                                                               _ -> TextInput "ERROR"
                                                               ) 
@@ -229,11 +243,11 @@ nodeInputDecoder = Decode.oneOf
 ----------------------------- HELPERS
 
 
-mapInput : (t -> t2) -> (n -> n2) -> NodeInput t n -> NodeInput t2 n2
-mapInput tf nf input = case input of
+mapInput : (t -> t2) -> (n -> n2) -> (nid -> nid2) -> NodeInput t n nid -> NodeInput t2 n2 nid2
+mapInput tf nf nidf input = case input of
   (Object dict) ->  
   
-    Object <| Dict.map (\_ v -> mapInput tf nf v) dict
+    Object <| Dict.map (\_ v -> mapInput tf nf nidf v) dict
   
   (TextInput t) -> 
     TextInput (tf t)
@@ -241,8 +255,10 @@ mapInput tf nf input = case input of
   (NumberInput n) -> 
     NumberInput (nf n)
 
+  (NodeIDInput nid) -> NodeIDInput (nidf nid)
+
   (ListInput sampleInput subInputs) ->
-    ListInput (mapInput tf nf sampleInput) (List.map (mapInput tf nf) subInputs) 
+    ListInput (mapInput tf nf nidf sampleInput) (List.map (mapInput tf nf nidf) subInputs) 
 
 
 
