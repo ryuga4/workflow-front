@@ -13,13 +13,14 @@ import Random as Random
 main = Browser.element {init=init,update=update,subscriptions=subscriptions,view=view}
 
 
-type alias Model = {workflow : Workflow.Model, availableNodes : List (String, String -> Node.Model)}
+type alias Model = {workflow : Workflow.Model, availableNodes : List (String, String -> Node.Model), nodesDefinitions : String}
 
 type Msg 
         = NoOp 
         | WorkflowMsg Workflow.Msg
         | RequestGuidForNode (String -> Node.Model)
         | AddNode Node.Model
+        | NodeDefinitionChanged String
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -34,13 +35,20 @@ update msg ({workflow} as model) = case msg of
     AddNode node -> 
       let newWorkflow = {workflow | nodes = workflow.nodes ++ [node]}
       in ({model | workflow = newWorkflow}, Cmd.none)
+    NodeDefinitionChanged jsonString ->
+     case Decode.decodeString (Decode.list Node.modelDecoder) jsonString of
+        Ok nodes -> ({workflow = { documentId = "testDocumentId", nodes = []}, availableNodes = nodes, nodesDefinitions = jsonString}, Cmd.none)
+        Err e -> Debug.log (Decode.errorToString e) ({workflow = { documentId = "testDocumentId", nodes = []}, availableNodes = [], nodesDefinitions = jsonString}, Cmd.none)
+
+
 view : Model -> Html.Html Msg
 view model = Element.layout [] <| Element.row []
-    [ Element.column [] <| List.map (\(name, constructor) -> 
+    [ Element.column [Element.alignTop] <| List.map (\(name, constructor) -> 
           Input.button [Background.color (Element.rgb255 238 238 238), Element.focused [Background.color (Element.rgb255 150 150 200)]] {onPress = Just (RequestGuidForNode constructor), label = Element.text name} 
         ) model.availableNodes
     , Element.el [Element.alignTop] (Element.map WorkflowMsg (Workflow.view model.workflow))
-    , Input.multiline [] {onChange = \_ -> NoOp, text = Encode.encode 5 (Workflow.encodeModel model.workflow), placeholder = Nothing, label = Input.labelHidden "kod", spellcheck = False}
+    , Input.multiline [Element.alignTop] {onChange = \_ -> NoOp, text = Encode.encode 5 (Workflow.encodeModel model.workflow), placeholder = Nothing, label = Input.labelHidden "kod", spellcheck = False}
+    , Input.multiline [Element.alignTop] {onChange = NodeDefinitionChanged, text = model.nodesDefinitions, placeholder = Nothing, label = Input.labelHidden "definicje", spellcheck = False}
     ]
   
 
@@ -54,14 +62,14 @@ subscriptions model = Sub.map WorkflowMsg (Workflow.subscriptions model.workflow
 
 init : () -> (Model, Cmd Msg)
 init () = 
-    case Decode.decodeString (Decode.list Node.modelDecoder) jsonString of
-        Ok nodes -> ({workflow = { documentId = "testDocumentId", nodes = []}, availableNodes = nodes}, Cmd.none)
-        Err e -> Debug.log (Decode.errorToString e) ({workflow = { documentId = "testDocumentId", nodes = []}, availableNodes = []}, Cmd.none)
+    case Decode.decodeString (Decode.list Node.modelDecoder) jsonString2 of
+        Ok nodes -> ({workflow = { documentId = "testDocumentId", nodes = []}, availableNodes = nodes, nodesDefinitions = jsonString2}, Cmd.none)
+        Err e -> Debug.log (Decode.errorToString e) ({workflow = { documentId = "testDocumentId", nodes = []}, availableNodes = [], nodesDefinitions = jsonString2}, Cmd.none)
 
 
 
-jsonString : String
-jsonString = """
+jsonString2 : String
+jsonString2 = """
 [
   {
     "nodeType": "WorkflowRabbit.WorkflowNodes.DocumentSignedNotifyNode.DocumentSignedNotifyNodeDefinition`1, WorkflowRabbit, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",

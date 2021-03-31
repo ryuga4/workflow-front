@@ -5259,10 +5259,6 @@ var $author$project$Node$ListInput = F2(
 var $author$project$Node$NodeIDInput = function (a) {
 	return {$: 'NodeIDInput', a: a};
 };
-var $author$project$Node$NodeIDInputData = F2(
-	function (a, b) {
-		return {$: 'NodeIDInputData', a: a, b: b};
-	});
 var $author$project$Node$NumberInput = function (a) {
 	return {$: 'NumberInput', a: a};
 };
@@ -5460,11 +5456,7 @@ function $author$project$Node$cyclic$nodeInputDecoder() {
 											var _v13 = _v12.a;
 											var _v14 = _v12.b;
 											var _v15 = _v12.c;
-											return $author$project$Node$NodeIDInput(
-												A2(
-													$author$project$Node$NodeIDInputData,
-													'',
-													_Utils_Tuple2(0, 0)));
+											return $author$project$Node$NodeIDInput('');
 										default:
 											break _v0$4;
 									}
@@ -6430,7 +6422,7 @@ var $elm$core$Dict$values = function (dict) {
 var $author$project$Node$updateInput = F2(
 	function (msg, nodeInput) {
 		var _v0 = _Utils_Tuple2(msg, nodeInput);
-		_v0$7:
+		_v0$8:
 		while (true) {
 			switch (_v0.a.$) {
 				case 'NoOp':
@@ -6443,7 +6435,16 @@ var $author$project$Node$updateInput = F2(
 							$author$project$Node$TextInput(t),
 							$elm$core$Platform$Cmd$none);
 					} else {
-						break _v0$7;
+						break _v0$8;
+					}
+				case 'NodeIDChanged':
+					if (_v0.b.$ === 'NodeIDInput') {
+						var n = _v0.a.a;
+						return _Utils_Tuple2(
+							$author$project$Node$NodeIDInput(n),
+							$elm$core$Platform$Cmd$none);
+					} else {
+						break _v0$8;
 					}
 				case 'NumberChanged':
 					if (_v0.b.$ === 'NumberInput') {
@@ -6452,7 +6453,7 @@ var $author$project$Node$updateInput = F2(
 							$author$project$Node$NumberInput(n),
 							$elm$core$Platform$Cmd$none);
 					} else {
-						break _v0$7;
+						break _v0$8;
 					}
 				case 'NestedMsg':
 					if (_v0.a.a.$ === 'TextIndex') {
@@ -6487,7 +6488,7 @@ var $author$project$Node$updateInput = F2(
 								$author$project$Node$Object(values),
 								$elm$core$Platform$Cmd$batch(cmds));
 						} else {
-							break _v0$7;
+							break _v0$8;
 						}
 					} else {
 						if (_v0.b.$ === 'ListInput') {
@@ -6522,7 +6523,7 @@ var $author$project$Node$updateInput = F2(
 								A2($author$project$Node$ListInput, sampleInput, values),
 								$elm$core$Platform$Cmd$batch(cmds));
 						} else {
-							break _v0$7;
+							break _v0$8;
 						}
 					}
 				case 'AddElement':
@@ -6541,7 +6542,7 @@ var $author$project$Node$updateInput = F2(
 										[sampleInput]))),
 							$elm$core$Platform$Cmd$none);
 					} else {
-						break _v0$7;
+						break _v0$8;
 					}
 				case 'DeleteElement':
 					if (_v0.b.$ === 'ListInput') {
@@ -6556,10 +6557,10 @@ var $author$project$Node$updateInput = F2(
 								A2($elm_community$list_extra$List$Extra$removeAt, ix, subInputs)),
 							$elm$core$Platform$Cmd$none);
 					} else {
-						break _v0$7;
+						break _v0$8;
 					}
 				default:
-					break _v0$7;
+					break _v0$8;
 			}
 		}
 		return _Utils_Tuple2(nodeInput, $elm$core$Platform$Cmd$none);
@@ -12426,8 +12427,7 @@ var $author$project$Node$encodeNodeInput = function (nodeInput) {
 						A2($elm$json$Json$Encode$list, $author$project$Node$encodeNodeInput, subInputs))
 					]));
 		default:
-			var _v2 = nodeInput.a;
-			var s = _v2.a;
+			var s = nodeInput.a;
 			return $elm$json$Json$Encode$object(
 				_List_fromArray(
 					[
@@ -14049,11 +14049,7 @@ var $author$project$Node$nodeInputToView = F2(
 						text: t
 					});
 			case 'NodeIDInput':
-				var _v2 = input.a;
-				var nodeID = _v2.a;
-				var _v3 = _v2.b;
-				var x = _v3.a;
-				var y = _v3.b;
+				var nodeID = input.a;
 				return A2(
 					$mdgriffith$elm_ui$Element$Input$multiline,
 					_List_fromArray(
