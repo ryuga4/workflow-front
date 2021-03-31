@@ -5256,6 +5256,13 @@ var $author$project$Node$ListInput = F2(
 	function (a, b) {
 		return {$: 'ListInput', a: a, b: b};
 	});
+var $author$project$Node$NodeIDInput = function (a) {
+	return {$: 'NodeIDInput', a: a};
+};
+var $author$project$Node$NodeIDInputData = F2(
+	function (a, b) {
+		return {$: 'NodeIDInputData', a: a, b: b};
+	});
 var $author$project$Node$NumberInput = function (a) {
 	return {$: 'NumberInput', a: a};
 };
@@ -5453,7 +5460,11 @@ function $author$project$Node$cyclic$nodeInputDecoder() {
 											var _v13 = _v12.a;
 											var _v14 = _v12.b;
 											var _v15 = _v12.c;
-											return $author$project$Node$TextInput('');
+											return $author$project$Node$NodeIDInput(
+												A2(
+													$author$project$Node$NodeIDInputData,
+													'',
+													_Utils_Tuple2(0, 0)));
 										default:
 											break _v0$4;
 									}
@@ -12401,7 +12412,7 @@ var $author$project$Node$encodeNodeInput = function (nodeInput) {
 						'value',
 						$elm$json$Json$Encode$int(n))
 					]));
-		default:
+		case 'ListInput':
 			var sampleInput = nodeInput.a;
 			var subInputs = nodeInput.b;
 			return $elm$json$Json$Encode$object(
@@ -12413,6 +12424,19 @@ var $author$project$Node$encodeNodeInput = function (nodeInput) {
 						_Utils_Tuple2(
 						'inputs',
 						A2($elm$json$Json$Encode$list, $author$project$Node$encodeNodeInput, subInputs))
+					]));
+		default:
+			var _v2 = nodeInput.a;
+			var s = _v2.a;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'inputMethod',
+						$elm$json$Json$Encode$string('basic')),
+						_Utils_Tuple2(
+						'value',
+						$elm$json$Json$Encode$string(s))
 					]));
 	}
 };
@@ -13920,6 +13944,9 @@ var $author$project$Node$NestedMsg = F2(
 	function (a, b) {
 		return {$: 'NestedMsg', a: a, b: b};
 	});
+var $author$project$Node$NodeIDChanged = function (a) {
+	return {$: 'NodeIDChanged', a: a};
+};
 var $author$project$Node$NumberChanged = function (a) {
 	return {$: 'NumberChanged', a: a};
 };
@@ -14020,6 +14047,32 @@ var $author$project$Node$nodeInputToView = F2(
 						placeholder: $elm$core$Maybe$Nothing,
 						spellcheck: false,
 						text: t
+					});
+			case 'NodeIDInput':
+				var _v2 = input.a;
+				var nodeID = _v2.a;
+				var _v3 = _v2.b;
+				var x = _v3.a;
+				var y = _v3.b;
+				return A2(
+					$mdgriffith$elm_ui$Element$Input$multiline,
+					_List_fromArray(
+						[
+							$mdgriffith$elm_ui$Element$padding(4),
+							$mdgriffith$elm_ui$Element$width(
+							A2(
+								$mdgriffith$elm_ui$Element$maximum,
+								150,
+								A2($mdgriffith$elm_ui$Element$minimum, 100, $mdgriffith$elm_ui$Element$fill)))
+						]),
+					{
+						label: $mdgriffith$elm_ui$Element$Input$labelHidden('podaj tekst'),
+						onChange: function (t2) {
+							return $author$project$Node$NodeIDChanged(t2);
+						},
+						placeholder: $elm$core$Maybe$Nothing,
+						spellcheck: false,
+						text: nodeID
 					});
 			case 'NumberInput':
 				var n = input.a;
@@ -14139,6 +14192,7 @@ var $author$project$Node$nodeToView = function (node) {
 			]),
 		_List_fromArray(
 			[
+				$mdgriffith$elm_ui$Element$text(node.id),
 				A2(
 				$mdgriffith$elm_ui$Element$row,
 				_List_Nil,

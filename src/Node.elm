@@ -48,12 +48,11 @@ type alias NodeInstanceViewModel =
   { nodeType : String
   , id : String
   , nodeName : String
-  , nodeDefinition : NodeInput String Int NodeIDInputData
+  , nodeDefinition : NodeInput String Int String
   , position : (Int,Int)
   , drag : Draggable.State String
   }
 
-type NodeIDInputData = NodeIDInputData String (Int,Int)
 
 type NodeInput t n nid = Object (Dict String (NodeInput t n nid))
                | TextInput t
@@ -100,7 +99,7 @@ nodeToView node = Element.column [Background.color (Element.rgb255 250 250 250),
   , nodeInputToView 1 node.nodeDefinition
   ]
 
-nodeInputToView : Int -> NodeInput String Int NodeIDInputData -> Element.Element Msg
+nodeInputToView : Int -> NodeInput String Int String -> Element.Element Msg
 nodeInputToView lvl input = case input of
 
   (Object dict) -> 
@@ -117,7 +116,7 @@ nodeInputToView lvl input = case input of
       , spellcheck = False
       }
 
-  (NodeIDInput (NodeIDInputData nodeID (x,y))) ->
+  (NodeIDInput nodeID) ->
     Input.multiline [Element.padding 4, Element.width (Element.fill |> Element.minimum 100 |> Element.maximum 150)]
       { onChange = \t2 -> NodeIDChanged t2 
       , text = nodeID
@@ -167,11 +166,12 @@ update msg model = case msg of
     let (newNodeDefinition, cmd) = updateInput msg model.nodeDefinition
     in ({model | nodeDefinition = newNodeDefinition}, cmd)
 
-updateInput : Msg -> NodeInput String Int NodeIDInputData -> (NodeInput String Int NodeIDInputData, Cmd Msg)
+updateInput : Msg -> NodeInput String Int String -> (NodeInput String Int String, Cmd Msg)
 updateInput msg nodeInput = case (msg, nodeInput) of
   (NoOp, _) -> (nodeInput, Cmd.none)
 
   (TextChanged t, TextInput _) -> (TextInput t, Cmd.none)
+  (NodeIDChanged n, NodeIDInput _) -> (NodeIDInput n, Cmd.none)
   (NumberChanged n, NumberInput _) -> (NumberInput n, Cmd.none)
   (NestedMsg (TextIndex textKey) subMsg, Object dict) -> 
         let updatedSubInputs = Dict.map (\k v -> if k == textKey then updateInput subMsg v else (v, Cmd.none)) dict
@@ -204,7 +204,7 @@ encodeModel model = Encode.object
   , ("nodeDefinition", encodeNodeInput model.nodeDefinition)
   ]
 
-encodeNodeInput : NodeInput String Int NodeIDInputData -> Encode.Value
+encodeNodeInput : NodeInput String Int String -> Encode.Value
 encodeNodeInput nodeInput = case nodeInput of
   Object dict -> Encode.object <| List.map (\(k,v) -> (k,encodeNodeInput v)) <| Dict.toList dict
 
@@ -214,7 +214,7 @@ encodeNodeInput nodeInput = case nodeInput of
 
   ListInput sampleInput subInputs -> Encode.object [("inputMethod", Encode.string "list"),("inputs", Encode.list encodeNodeInput subInputs)]
 
-  NodeIDInput (NodeIDInputData s _) -> Encode.object [("inputMethod", Encode.string "basic"), ("value", Encode.string s)]
+  NodeIDInput s -> Encode.object [("inputMethod", Encode.string "basic"), ("value", Encode.string s)]
 
 
 modelDecoder : Decode.Decoder (String, String -> Model)
@@ -223,12 +223,12 @@ modelDecoder = Decode.map3 (\nodeType nodeName nodeDefinition -> (nodeName, \id 
                   (Decode.field "nodeName" Decode.string)
                   (Decode.field "nodeDefinition" nodeInputDecoder)
 
-nodeInputDecoder : Decode.Decoder (NodeInput String Int NodeIDInputData)
+nodeInputDecoder : Decode.Decoder (NodeInput String Int String)
 nodeInputDecoder = Decode.oneOf 
                     [ Decode.map5 (\inputType inputLabel maybeMin maybeMax maybeSubInput -> case ((inputType, inputLabel),(maybeMin, maybeMax, maybeSubInput)) of 
                                                               (("text", l), (Nothing, Nothing, Nothing)) -> TextInput ""
                                                               (("number", l), (Nothing, Nothing, Nothing)) -> NumberInput 0
-                                                              (("nodeID", l), (Nothing, Nothing, Nothing)) -> NodeIDInput (NodeIDInputData "" (0,0))
+                                                              (("nodeID", l), (Nothing, Nothing, Nothing)) -> NodeIDInput ""
                                                               (("list", l), (Just min, Just max, Just subInput)) -> ListInput subInput []
                                                               _ -> TextInput "ERROR"
                                                               ) 
