@@ -39,6 +39,7 @@ type Msg
         | DeleteElement Int
         | DragMsg (Draggable.Msg String)
         | OnDragBy Draggable.Delta
+        | OutputKeyChanged String
         
 
 type alias Model = NodeInstanceViewModel
@@ -59,6 +60,7 @@ type NodeInput t n nid = Object (Dict String (NodeInput t n nid))
                | NumberInput n
                | NodeIDInput nid
                | ListInput (NodeInput t n nid) (List (NodeInput t n nid)) 
+               | NodeOutput String
 
 
 
@@ -144,6 +146,14 @@ nodeInputToView lvl input = case input of
             ,  Input.button [Background.color (Element.rgb 200 0 0)] {onPress = Just (DeleteElement i), label = Element.text ("delete item")}
             ]) <| List.map (nodeInputToView (lvl+1)) subInputs))
 
+  (NodeOutput outputKey) ->
+    Input.multiline [Element.padding 4, Element.width (Element.fill |> Element.minimum 100 |> Element.maximum 150)]
+      { onChange = \t2 -> OutputKeyChanged t2 
+      , text = outputKey
+      , placeholder = Nothing
+      , label = Input.labelHidden "podaj outputKey"
+      , spellcheck = False
+      }
 
 
 -------------------------- UPDATE
@@ -190,6 +200,7 @@ updateInput msg nodeInput = case (msg, nodeInput) of
 
   (DeleteElement ix, ListInput sampleInput subInputs) -> (ListInput sampleInput <| List.removeAt ix subInputs, Cmd.none)
 
+  (OutputKeyChanged k, NodeOutput _) -> (NodeOutput k, Cmd.none)
   _ -> (nodeInput, Cmd.none)
 
 
@@ -216,12 +227,8 @@ encodeNodeInput nodeInput = case nodeInput of
 
   NodeIDInput s -> Encode.object [("inputMethod", Encode.string "basic"), ("value", Encode.string s)]
 
+  NodeOutput k -> Encode.object [("inputMethod", Encode.string "output"), ("value", Encode.string k)]
 
-modelDecoder : Decode.Decoder (String, String -> Model)
-modelDecoder = Decode.map3 (\nodeType nodeName nodeDefinition -> (nodeName, \id -> {nodeType = nodeType, nodeName=nodeName, id = id, nodeDefinition = nodeDefinition, position = (0,0), drag = Draggable.init}))
-                  (Decode.field "nodeType" Decode.string)
-                  (Decode.field "nodeName" Decode.string)
-                  (Decode.field "nodeDefinition" nodeInputDecoder)
 
 nodeInputDecoder : Decode.Decoder (NodeInput String Int String)
 nodeInputDecoder = Decode.oneOf 
@@ -230,6 +237,7 @@ nodeInputDecoder = Decode.oneOf
                                                               (("number", l), (Nothing, Nothing, Nothing)) -> NumberInput 0
                                                               (("nodeID", l), (Nothing, Nothing, Nothing)) -> NodeIDInput ""
                                                               (("list", l), (Just min, Just max, Just subInput)) -> ListInput subInput []
+                                                              (("output", l), (Nothing,Nothing,Nothing)) -> NodeOutput ""
                                                               _ -> TextInput "ERROR"
                                                               ) 
                                                               (Decode.field "type" Decode.string)
@@ -243,23 +251,12 @@ nodeInputDecoder = Decode.oneOf
 ----------------------------- HELPERS
 
 
-mapInput : (t -> t2) -> (n -> n2) -> (nid -> nid2) -> NodeInput t n nid -> NodeInput t2 n2 nid2
-mapInput tf nf nidf input = case input of
-  (Object dict) ->  
-  
-    Object <| Dict.map (\_ v -> mapInput tf nf nidf v) dict
-  
-  (TextInput t) -> 
-    TextInput (tf t)
-  
-  (NumberInput n) -> 
-    NumberInput (nf n)
-
-  (NodeIDInput nid) -> NodeIDInput (nidf nid)
-
-  (ListInput sampleInput subInputs) ->
-    ListInput (mapInput tf nf nidf sampleInput) (List.map (mapInput tf nf nidf) subInputs) 
 
 
 
 
+modelDecoder : Decode.Decoder (String, String -> Model)
+modelDecoder = Decode.map3 (\nodeType nodeName nodeDefinition -> (nodeName, \id -> {nodeType = nodeType, nodeName=nodeName, id = id, nodeDefinition = nodeDefinition, position = (0,0), drag = Draggable.init}))
+                  (Decode.field "nodeType" Decode.string)
+                  (Decode.field "nodeName" Decode.string)
+                  (Decode.field "nodeDefinition" nodeInputDecoder)

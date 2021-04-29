@@ -10,6 +10,7 @@ import Element.Background as Background
 import Debug as Debug
 import Html as Html
 import Random as Random
+import Http as Http
 main = Browser.element {init=init,update=update,subscriptions=subscriptions,view=view}
 
 
@@ -58,12 +59,10 @@ subscriptions model = Sub.map WorkflowMsg (Workflow.subscriptions model.workflow
 
 
 
-
-
 init : () -> (Model, Cmd Msg)
 init () = 
     case Decode.decodeString (Decode.list Node.modelDecoder) jsonString2 of
-        Ok nodes -> ({workflow = { documentId = "testDocumentId", nodes = []}, availableNodes = nodes, nodesDefinitions = jsonString2}, Cmd.none)
+        Ok nodes -> Debug.log (Encode.encode 1 <| (Encode.list Node.encodeModel) (List.map (\x -> x "") <| List.map Tuple.second nodes)) ({workflow = { documentId = "testDocumentId", nodes = []}, availableNodes = nodes, nodesDefinitions = jsonString2}, Cmd.none)
         Err e -> Debug.log (Decode.errorToString e) ({workflow = { documentId = "testDocumentId", nodes = []}, availableNodes = [], nodesDefinitions = jsonString2}, Cmd.none)
 
 
@@ -74,7 +73,6 @@ jsonString2 = """
   {
     "nodeType": "WorkflowRabbit.WorkflowNodes.DocumentSignedNotifyNode.DocumentSignedNotifyNodeDefinition`1, WorkflowRabbit, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
     "nodeName": "Document signed notify node",
-    "outputs": [],
     "nodeDefinition": {
       "email": {
         "type": "text",
@@ -89,7 +87,6 @@ jsonString2 = """
   {
     "nodeType": "WorkflowRabbit.WorkflowNodes.FinishNode.FinishNodeDefinition`1, WorkflowRabbit, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
     "nodeName": "Finish Node",
-    "outputs": [],
     "nodeDefinition": {
       "funnyNumbers": {
         "subInput": {
@@ -106,7 +103,6 @@ jsonString2 = """
   {
     "nodeType": "WorkflowRabbit.WorkflowNodes.RaceFinishNode.RaceFinishNodeDefinition`1, WorkflowRabbit, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
     "nodeName": "Race finish node",
-    "outputs": [],
     "nodeDefinition": {
       "nextNodeID": {
         "type": "nodeID",
@@ -117,7 +113,6 @@ jsonString2 = """
   {
     "nodeType": "WorkflowRabbit.WorkflowNodes.SendToSignNode.SendToSignNodeDefinition`1, WorkflowRabbit, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
     "nodeName": "Send to sign node",
-    "outputs": [],
     "nodeDefinition": {
       "email": {
         "type": "text",
@@ -132,7 +127,6 @@ jsonString2 = """
   {
     "nodeType": "WorkflowRabbit.WorkflowNodes.StraightPassNode.StraightPassNodeDefinition`1, WorkflowRabbit, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
     "nodeName": "Straight pass node",
-    "outputs": [],
     "nodeDefinition": {
       "message": {
         "type": "text",
@@ -141,13 +135,16 @@ jsonString2 = """
       "nextNodeID": {
         "type": "nodeID",
         "label": "Next node"
+      },
+      "reversedMessageOutput": {
+        "type": "output",
+        "label": "Reversed Message Output"
       }
     }
   },
   {
     "nodeType": "WorkflowRabbit.WorkflowNodes.RaceNode.RaceNodeDefinition`1, WorkflowRabbit, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
     "nodeName": "Race node",
-    "outputs": [],
     "nodeDefinition": {
       "successors": {
         "subInput": {
@@ -163,8 +160,7 @@ jsonString2 = """
   },
   {
     "nodeType": "WorkflowRabbit.WorkflowNodes.WaitForSignNode.WaitForSignNodeDefinition`1, WorkflowRabbit, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
-    "nodeName": "Straight pass node",
-    "outputs": [],
+    "nodeName": "Wait for sign node",
     "nodeDefinition": {
       "signatureType": {
         "type": "text",
@@ -179,7 +175,6 @@ jsonString2 = """
   {
     "nodeType": "WorkflowRabbit.WorkflowNodes.WaitNode.WaitNodeDefinition`1, WorkflowRabbit, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
     "nodeName": "Wait node",
-    "outputs": [],
     "nodeDefinition": {
       "timeSpanString": {
         "type": "text",
