@@ -227,7 +227,7 @@ encodeNodeInput nodeInput = case nodeInput of
 
   NodeIDInput s -> Encode.object [("inputMethod", Encode.string "basic"), ("value", Encode.string s)]
 
-  NodeOutput k -> Encode.object [("inputMethod", Encode.string "output"), ("value", Encode.string k)]
+  NodeOutput k -> Encode.object [("inputMethod", Encode.string "output"), ("key", Encode.string k)]
 
 
 nodeInputDecoder : Decode.Decoder (NodeInput String Int String)
